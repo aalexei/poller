@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Vote{% endblock %}
+{% block body %}
+<form action="/vote">
+    <input type="hidden" name="pollcode" value="{{ pollcode }}">
+    {% for v in values %}
+    <button class="button is-medium is-fullwidth" name="vote" value="{{ v }}">{{ v }}</button>
+    {% endfor %}
+</form>
+{% endblock %}
