@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Vote{% endblock %}
+{% block menu %}
+<a class="navbar-item" href="/">
+    Refresh
+</a>
+<hr class="navbar-divider">
+<a class="navbar-item" href="/forgetpoll">
+    Join new poll
+</a>
+{% endblock %}
 {% block extrahead %}
 <!-- <meta http-equiv="refresh" content="10"> -->
 {% endblock %}
@@ -16,5 +25,4 @@
     {% endfor %}
     </div>
 </form>
-<a href="/">Refresh</a>
 {% endblock %}

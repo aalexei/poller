@@ -3,18 +3,39 @@
 {% block extrahead %}
 <!-- <meta http-equiv="refresh" content="10"> -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+<script src="/static/js/qrious.min.js"></script>
+{% endblock %}
+{% block menu %}
+<a class="navbar-item" href="/poller">
+    Refresh
+</a>
+<hr class="navbar-divider">
+<a class="navbar-item" href="/clearvotes/{{pollcode}}">
+    Clear votes
+</a>
 {% endblock %}
 {% block body %}
-<div class="columns">
+<div class="columns is-mobile is-centered">
     <div class="column">
-        QR Code for {{pollcode}}
+        <canvas id="qr"></canvas>
+        <script>
+         (function() {
+             var qr = new QRious({
+                 element: document.getElementById('qr'),
+                 value: 'http://{{host}}/?pollcode={{pollcode}}',
+                 size: 300,
+             });
+         })();
+        </script>
     </div>
     <div class="column">
-        Votes: {{ votes|length }}
+        <p class="subtitle is-4">Poll: {{pollcode}}</p>
+        <p class="title is-3">Votes</p>
+        <p class="subtitle is-3">{{ votes|length }}</p>
     </div>
 </div>
 <div class="box">
-    <canvas id="myChart" width="200" height="200"></canvas>
+    <canvas id="myChart" width="100%" height="100%"></canvas>
     <script>
      var ctx = document.getElementById('myChart');
      var myChart = new Chart(ctx, {
@@ -24,5 +45,4 @@
      });
     </script>
 </div>
-<a href="/poller">Refresh</a>
 {% endblock %}

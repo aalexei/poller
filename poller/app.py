@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sqlite3, uuid, json
+import sqlite3, uuid, json, socket
 from flask import g, Flask
 from flask import session, redirect, url_for, request, render_template, flash
 from collections import Counter
@@ -87,6 +87,13 @@ def index():
        
     return render_template("choosepoll.html", session=session)
 
+@app.route('/forgetpoll')
+def forgetpoll():
+    if 'pollcode' in session:
+        del session['pollcode']
+
+    return redirect(url_for('index'))
+
 @app.route('/vote', methods=('GET', 'POST'))
 def vote():
     error = None
@@ -118,12 +125,6 @@ def vote():
 
 
 
-@app.route('/poll')
-def poll():
-    cur = get_db().cursor()
-    return "Poll"
-
-
 @app.route('/clear')
 def clearuid():
     for key in ['uid', 'pollcode']:
@@ -139,7 +140,7 @@ def clearvotes(pollcode):
     db.execute("DELETE FROM votes WHERE pollcode = ?", [pollcode])
     db.commit()
 
-    return "Done"
+    return redirect(url_for('poller'))
 
 @app.route('/poller', methods=('GET', 'POST'))
 def poller():
@@ -154,6 +155,9 @@ def poller():
     labels = ["A", "B", "C", "D"]
     values = [c[l] for l in labels]
 
+    hostname = socket.gethostname()
+    #ip_address = socket.gethostbyname(hostname)
+
     data = {
         'labels':labels,
         'datasets': [{
@@ -164,4 +168,4 @@ def poller():
     }
 
 
-    return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode)
+    return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode, host=hostname)
