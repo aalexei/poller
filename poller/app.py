@@ -50,30 +50,36 @@ def index():
     error = None
 
     if 'uid' not in session:
+        # Assign a new uuid
+        # TODO base it on comp/ip too?
         session['uid'] = uuid.uuid4().hex
 
+    # these override the current poll
+    newpollcode = None
     if request.method == 'GET':
-        pollcode = request.args.get('pollcode', default=None)
+        newpollcode = request.args.get('pollcode')
     elif request.method == 'POST':
-        pollcode = request.form['pollcode']
-    elif "pollcode" in session:
+        newpollcode = request.form['pollcode']
+    if newpollcode is not None:
+        session['pollcode'] = newpollcode
+
+    if "pollcode" in session:
+        # Is the poll still valid?
         pollcode = session["pollcode"]
-
-    if pollcode is not None:
         poll = query_db("SELECT * FROM polls WHERE pollcode = ?",[pollcode], one=True)
-
         if poll is None:
             error = "Poll '{}' doesn't exist".format(pollcode)
-            if 'pollcode' in session:
-                del session['pollcode']
+            del session['pollcode']
+
         else:
-            session['pollcode'] = pollcode
+            # Check to see if the user already voted
+            vote = None
             uid = session['uid']
             prev_vote =  query_db("SELECT * FROM votes WHERE pollcode = ? AND userid = ?",[pollcode, uid])
             if len(prev_vote)>0:
-                return "Already Voted"
+                vote = prev_vote[0]["choice"]
             
-            return render_template("poll.html", pollcode=pollcode, values=["A", "B", "C", "D"])
+            return render_template("poll.html", pollcode=pollcode, values=["A", "B", "C", "D"], vote=vote)
 
     if error is not None:
         flash(error)
@@ -84,8 +90,8 @@ def index():
 def vote():
     error = None
     uid = session['uid']
+    pollcode = session['pollcode']
     if request.method == 'GET':
-        pollcode = request.args.get('pollcode', default=None)
         vote = request.args.get('vote', default=None)
 
         if pollcode is None or vote is None:
@@ -97,22 +103,18 @@ def vote():
             elif poll['status'] == 0:
                 error = "Poll '{}' is not open".format(pollcode)
             else:
-                prev_vote =  query_db("SELECT * FROM votes WHERE pollcode = ? AND userid = ?",[pollcode, uid])
-                if len(prev_vote)>0:
-                    return "Already Voted"
-                else:
-                    db = get_db()
-                    db.execute("INSERT INTO votes (userid, pollcode, choice) VALUES (?,?,?)",
+                db = get_db()
+                # clear any existing votes
+                db.execute("DELETE FROM votes WHERE pollcode = ? AND userid = ?", [pollcode, uid])
+                db.execute("INSERT INTO votes (userid, pollcode, choice) VALUES (?,?,?)",
                                            [uid, pollcode, vote])
-                    db.commit()
+                db.commit()
 
+    if error is not None:
+        flash(error)
 
-        if error is not None:
-            flash(error)
-            return redirect(url_for('index'))
+    return redirect(url_for('index'))
 
-        return str([pollcode, uid, vote])
-    return "Poll"
 
 
 @app.route('/poll')
@@ -121,12 +123,13 @@ def poll():
     return "Poll"
 
 
-@app.route('/clearuid')
+@app.route('/clear')
 def clearuid():
-    if 'uid' in session:
-        del session['uid']
+    for key in ['uid', 'pollcode']:
+        if key in session:
+            del session[key]
 
-    flash("Cleared UID")
+    flash("Cleared session data")
     return redirect(url_for('index'))
 
 @app.route('/clearvotes/<pollcode>')

@@ -3,8 +3,14 @@
 {% block body %}
 <form action="/vote">
     <input type="hidden" name="pollcode" value="{{ pollcode }}">
+    <div class="buttons">
     {% for v in values %}
-    <button class="button is-medium is-fullwidth" name="vote" value="{{ v }}">{{ v }}</button>
+    {% if v == vote %}
+        <button class="button is-medium is-fullwidth is-info" disabled name="vote" value="{{ v }}">{{ v }}</button>
+        {% else %}
+        <button class="button is-medium is-fullwidth is-info" name="vote" value="{{ v }}">{{ v }}</button>
+    {% endif %}
     {% endfor %}
+    </div>
 </form>
 {% endblock %}
