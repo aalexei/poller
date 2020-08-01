@@ -4,6 +4,9 @@ from flask import g, Flask
 from flask import session, redirect, url_for, request, render_template, flash
 from collections import Counter
 import functools
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+
+#login_manager = LoginManager()
 
 # Borrowed code from
 # https://flask.palletsprojects.com/en/1.1.x/patterns/sqlite3/
@@ -13,7 +16,18 @@ app = Flask(__name__)
 # secret key
 app.secret_key = b'\x060W}\x10\x03\xcc\xf7$[\xc6H\x88\xa6\x87\x0c'
 
+#login_manager.init_app(app)
+login = LoginManager(app)
+login.login_view = 'login'
+
 DATABASE = 'poller.db'
+
+@login.user_loader
+def load_user(id):
+    if id=="alexei":
+        return User(id)
+    else:
+        return None
 
 def get_db():
     db = getattr(g, '_database', None)
@@ -44,6 +58,28 @@ def query_db(query, args=(), one=False):
     rv = cur.fetchall()
     cur.close()
     return (rv[0] if rv else None) if one else rv
+
+class User(object):
+    def __init__(self, id):
+        self.id = id
+        
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def is_authenticated(self):
+        if self.id is None:
+            return False
+        else:
+            return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return self.id
 
 
 @app.route('/', methods=('GET', 'POST'))
@@ -144,11 +180,12 @@ def clearvotes(pollcode):
     db.commit()
 
     # TODO how to pass parameter to poller?
-    return redirect(url_for('poller'), pollcode=pollcode)
+    return redirect(url_for('poller'))
 
 
 
 @app.route('/poller')
+@login_required
 def poller():
     user = 'alexei'
     poll = query_db("SELECT * FROM polls WHERE poller = ?",[user], one=True)
@@ -177,4 +214,28 @@ def poller():
 
     return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode, host=hostname)
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        print(request.form)
+        email = request.form['email']
+        password = request.form['password']
+        error = None
+
+        if email == "alexei@entropy.energy" and password == "pollnow":
+            user = User("alexei")
+        else:
+            user = User(None)
+
+        # user should be an instance of your `User` class
+        login_user(user)
+
+        return redirect(url_for('poller'))
+    return render_template('login.html')
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
 
