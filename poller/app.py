@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import sqlite3, uuid
+import sqlite3, uuid, json
 from flask import g, Flask
 from flask import session, redirect, url_for, request, render_template, flash
+from collections import Counter
 
 # Borrowed code from
 # https://flask.palletsprojects.com/en/1.1.x/patterns/sqlite3/
@@ -139,3 +140,28 @@ def clearvotes(pollcode):
     db.commit()
 
     return "Done"
+
+@app.route('/poller', methods=('GET', 'POST'))
+def poller():
+
+    pollcode = "xxx"
+    poll = query_db("SELECT * FROM votes WHERE pollcode = ?",[pollcode])
+    votes = [v["choice"] for v in poll]
+
+    c = Counter(votes)
+
+    # TODO don't hard code choices
+    labels = ["A", "B", "C", "D"]
+    values = [c[l] for l in labels]
+
+    data = {
+        'labels':labels,
+        'datasets': [{
+            'label':'Votes',
+            'data':values,
+            'backgroundColor': 'rgba(81, 151, 214, 1.0)',
+        }]
+    }
+
+
+    return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode)

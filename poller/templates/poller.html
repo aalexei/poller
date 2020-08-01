@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Poller{% endblock %}
+{% block extrahead %}
+<!-- <meta http-equiv="refresh" content="10"> -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+{% endblock %}
+{% block body %}
+<div class="columns">
+    <div class="column">
+        QR Code for {{pollcode}}
+    </div>
+    <div class="column">
+        Votes: {{ votes|length }}
+    </div>
+</div>
+<div class="box">
+    <canvas id="myChart" width="200" height="200"></canvas>
+    <script>
+     var ctx = document.getElementById('myChart');
+     var myChart = new Chart(ctx, {
+         type: 'horizontalBar',
+         data:
+             {{ data|safe }} ,
+     });
+    </script>
+</div>
+<a href="/poller">Refresh</a>
+{% endblock %}
