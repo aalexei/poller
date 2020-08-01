@@ -3,6 +3,7 @@ import sqlite3, uuid, json, socket
 from flask import g, Flask
 from flask import session, redirect, url_for, request, render_template, flash
 from collections import Counter
+import functools
 
 # Borrowed code from
 # https://flask.palletsprojects.com/en/1.1.x/patterns/sqlite3/
@@ -79,8 +80,9 @@ def index():
             prev_vote =  query_db("SELECT * FROM votes WHERE pollcode = ? AND userid = ?",[pollcode, uid])
             if len(prev_vote)>0:
                 vote = prev_vote[0]["choice"]
-            
-            return render_template("poll.html", pollcode=pollcode, values=["A", "B", "C", "D"], vote=vote)
+
+            labels = poll["polltype"].split()
+            return render_template("poll.html", pollcode=pollcode, values=labels, vote=vote)
 
     if error is not None:
         flash(error)
@@ -91,7 +93,6 @@ def index():
 def forgetpoll():
     if 'pollcode' in session:
         del session['pollcode']
-
     return redirect(url_for('index'))
 
 @app.route('/vote', methods=('GET', 'POST'))
@@ -110,6 +111,8 @@ def vote():
                 error = "Poll '{}' doesn't exist".format(pollcode)
             elif poll['status'] == 0:
                 error = "Poll '{}' is not open".format(pollcode)
+            elif vote not in poll["polltype"].split():
+                error = "Choice not in current poll"
             else:
                 db = get_db()
                 # clear any existing votes
@@ -140,19 +143,23 @@ def clearvotes(pollcode):
     db.execute("DELETE FROM votes WHERE pollcode = ?", [pollcode])
     db.commit()
 
-    return redirect(url_for('poller'))
+    # TODO how to pass parameter to poller?
+    return redirect(url_for('poller'), pollcode=pollcode)
 
-@app.route('/poller', methods=('GET', 'POST'))
+
+
+@app.route('/poller')
 def poller():
+    user = 'alexei'
+    poll = query_db("SELECT * FROM polls WHERE poller = ?",[user], one=True)
+    pollcode = poll['pollcode']
 
-    pollcode = "xxx"
-    poll = query_db("SELECT * FROM votes WHERE pollcode = ?",[pollcode])
-    votes = [v["choice"] for v in poll]
+    voterows = query_db("SELECT * FROM votes WHERE pollcode = ?",[pollcode])
+    votes = [v["choice"] for v in voterows]
 
     c = Counter(votes)
 
-    # TODO don't hard code choices
-    labels = ["A", "B", "C", "D"]
+    labels = poll["polltype"].split()
     values = [c[l] for l in labels]
 
     hostname = socket.gethostname()
@@ -169,3 +176,5 @@ def poller():
 
 
     return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode, host=hostname)
+
+
