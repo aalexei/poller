@@ -13,7 +13,7 @@ CREATE TABLE polls (
     created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     poller TEXT NOT NULL,
     pollcode TEXT UNIQUE NOT NULL,
-    polltype TEXT NOT NULL,
+    pollvalues TEXT NOT NULL,
     status INTEGER NOT NULL
 );
 

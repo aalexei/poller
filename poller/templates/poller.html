@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Poller{% endblock %}
 {% block extrahead %}
-<!-- <meta http-equiv="refresh" content="10"> -->
+<!-- <meta http-equiv="refresh" content="3"> -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
 <script src="/static/js/qrious.min.js"></script>
 {% endblock %}
@@ -32,6 +32,22 @@
         <p class="subtitle is-4">Poll: {{pollcode}}</p>
         <p class="title is-3">Votes</p>
         <p class="subtitle is-3">{{ votes|length }}</p>
+        <div class="buttons">
+            <a class="button is-primary" href="/poller">Refresh</a>
+        </div>
+        <form method="post" action="/changestatus">
+            <input type="hidden" name="pollcode" value="{{ pollcode }}">
+            <div class="control">
+                {% if status == 1 %}
+                <input type="hidden" name="status" value="0">
+                <button class="button is-link">Hide</button>
+                {% else %}
+                <input type="hidden" name="status" value="1">
+                <button class="button is-link">Show</button>
+                {% endif %}
+            </div>
+        </form>
+
     </div>
 </div>
 <div class="box">
@@ -44,5 +60,41 @@
              {{ data|safe }} ,
      });
     </script>
+</div>
+<div class="section">
+    <form method="post" action="/changepoll">
+        <div class="field is-horizontal">
+            <div class="field-label is-small">
+                <label class="label">Poll code</label>
+            </div>
+            <div class="field-body">
+                <div class="field">
+                    <div class="control">
+                        <input class="input is-small" type="text" placeholder="Numerical code" name="pollcode" value="{{pollcode}}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="field is-horizontal">
+            <div class="field-label is-small">
+                <label class="label">Poll Values</label>
+            </div>
+            <div class="field-body">
+                <div class="field">
+                    <div class="control">
+                        <input class="input is-small" type="text" placeholder="Space separated values" name="pollvalues" value="{{pollvalues}}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="field is-grouped">
+            <div class="control">
+                <button class="button is-link">Submit</button>
+            </div>
+            <div class="control">
+                <button class="button is-link is-light">Cancel</button>
+            </div>
+        </div>
+    </form>
 </div>
 {% endblock %}

@@ -5,6 +5,7 @@ from flask import session, redirect, url_for, request, render_template, flash
 from collections import Counter
 import functools
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+import random
 
 #login_manager = LoginManager()
 
@@ -45,6 +46,7 @@ def close_connection(exception):
 # Initialise from a python session
 # >>> import app
 # >>> app.init_db()
+# >>> app.init_data()
 def init_db():
     with app.app_context():
         db = get_db()
@@ -58,6 +60,16 @@ def query_db(query, args=(), one=False):
     rv = cur.fetchall()
     cur.close()
     return (rv[0] if rv else None) if one else rv
+
+def init_data():
+    # hack to initially populate some values
+    with app.app_context():
+        db = get_db()
+        # clear any existing votes
+        db.execute("INSERT INTO polls (poller, pollcode, pollvalues, status) VALUES (?,?,?,?)",
+                    ["alexei", "121", "A B C D", 0])
+        db.commit()
+
 
 class User(object):
     def __init__(self, id):
@@ -117,7 +129,7 @@ def index():
             if len(prev_vote)>0:
                 vote = prev_vote[0]["choice"]
 
-            labels = poll["polltype"].split()
+            labels = poll["pollvalues"].split()
             return render_template("poll.html", pollcode=pollcode, values=labels, vote=vote)
 
     if error is not None:
@@ -145,9 +157,7 @@ def vote():
             poll = query_db("SELECT * FROM polls WHERE pollcode = ?",[pollcode], one=True)
             if poll is None:
                 error = "Poll '{}' doesn't exist".format(pollcode)
-            elif poll['status'] == 0:
-                error = "Poll '{}' is not open".format(pollcode)
-            elif vote not in poll["polltype"].split():
+            elif vote not in poll["pollvalues"].split():
                 error = "Choice not in current poll"
             else:
                 db = get_db()
@@ -188,16 +198,33 @@ def clearvotes(pollcode):
 @login_required
 def poller():
     user = 'alexei'
-    poll = query_db("SELECT * FROM polls WHERE poller = ?",[user], one=True)
-    pollcode = poll['pollcode']
+    polls = query_db("SELECT * FROM polls WHERE poller = ?",[user])
+
+    if len(polls) == 0:
+        # create default poll with eandom code
+        pollcode = int(random.random()*10000)
+        pollvalues = "A B C D"
+        status = 0
+        db = get_db()
+        db.execute("INSERT INTO polls (poller, pollcode, pollvalues, status) VALUES (?,?,?,?)",
+                   [user, pollcode, pollvalues, 1])
+        db.commit()
+    else:
+        poll = polls[0]
+        pollcode = poll['pollcode']
+        pollvalues = poll['pollvalues']
+        status =  poll['status']
 
     voterows = query_db("SELECT * FROM votes WHERE pollcode = ?",[pollcode])
     votes = [v["choice"] for v in voterows]
 
     c = Counter(votes)
 
-    labels = poll["polltype"].split()
-    values = [c[l] for l in labels]
+    labels = pollvalues.split()
+    if status == 0:
+        values = []
+    else:
+        values = [c[l] for l in labels]
 
     hostname = socket.gethostname()
     #ip_address = socket.gethostbyname(hostname)
@@ -212,7 +239,40 @@ def poller():
     }
 
 
-    return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode, host=hostname)
+    return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode, host=hostname, pollvalues = pollvalues, status=status)
+
+@app.route('/changepoll', methods=['GET', 'POST'])
+@login_required
+def changepoll():
+    user = "alexei"
+    if request.method == 'POST':
+        pollcode =  request.form['pollcode']
+        pollvalues = request.form['pollvalues']
+
+        # TODO check pollcode doesn't already exist
+        db = get_db()
+        # clear current poll(s)
+        db.execute("DELETE FROM polls WHERE poller = ?", [user])
+
+        # Add new poll
+        db.execute("INSERT INTO polls (poller, pollcode, pollvalues, status) VALUES (?,?,?,?)",
+                   [user, pollcode, pollvalues, 1])
+        db.commit()
+    return clearvotes(pollcode)
+
+@app.route('/changestatus', methods=['GET', 'POST'])
+@login_required
+def changestatus():
+    user = "alexei"
+    if request.method == 'POST':
+        pollcode =  request.form['pollcode']
+        status = int(request.form['status'])
+
+        db = get_db()
+        # clear current poll(s)
+        db.execute("UPDATE polls SET status = ? WHERE pollcode = ?", [status, pollcode])
+        db.commit()
+    return redirect(url_for('poller'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
