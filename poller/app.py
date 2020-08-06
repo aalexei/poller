@@ -6,6 +6,8 @@ from collections import Counter
 import functools
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 import random
+import config
+
 
 #login_manager = LoginManager()
 
@@ -21,7 +23,7 @@ app.secret_key = b'\x060W}\x10\x03\xcc\xf7$[\xc6H\x88\xa6\x87\x0c'
 login = LoginManager(app)
 login.login_view = 'login'
 
-DATABASE = 'poller.db'
+DATABASE = config.DATABASE
 
 @login.user_loader
 def load_user(id):
@@ -187,6 +189,7 @@ def clearuid():
 def clearvotes(pollcode):
     db = get_db()
     db.execute("DELETE FROM votes WHERE pollcode = ?", [pollcode])
+    db.execute("UPDATE polls SET status = 0 WHERE pollcode = ?", [pollcode])
     db.commit()
 
     # TODO how to pass parameter to poller?
@@ -239,7 +242,7 @@ def poller():
     }
 
 
-    return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode, host=hostname, pollvalues = pollvalues, status=status)
+    return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode, host=hostname, pollvalues = pollvalues, status=status, labels = json.dumps(labels), series = json.dumps(values))
 
 @app.route('/changepoll', methods=['GET', 'POST'])
 @login_required
