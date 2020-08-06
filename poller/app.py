@@ -232,17 +232,8 @@ def poller():
     hostname = socket.gethostname()
     #ip_address = socket.gethostbyname(hostname)
 
-    data = {
-        'labels':labels,
-        'datasets': [{
-            'label':'Votes',
-            'data':values,
-            'backgroundColor': 'rgba(81, 151, 214, 1.0)',
-        }]
-    }
 
-
-    return render_template("poller.html", votes=votes, data = json.dumps(data), pollcode=pollcode, host=hostname, pollvalues = pollvalues, status=status, labels = json.dumps(labels), series = json.dumps(values))
+    return render_template("poller.html", votes=votes, pollcode=pollcode, host=hostname, pollvalues = pollvalues, status=status, labels = json.dumps(labels), values = json.dumps(values))
 
 @app.route('/changepoll', methods=['GET', 'POST'])
 @login_required
