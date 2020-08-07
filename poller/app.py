@@ -186,6 +186,7 @@ def clearuid():
     return redirect(url_for('index'))
 
 @app.route('/clearvotes/<pollcode>')
+@login_required
 def clearvotes(pollcode):
     db = get_db()
     db.execute("DELETE FROM votes WHERE pollcode = ?", [pollcode])
@@ -194,7 +195,6 @@ def clearvotes(pollcode):
 
     # TODO how to pass parameter to poller?
     return redirect(url_for('poller'))
-
 
 
 @app.route('/poller')
@@ -254,16 +254,14 @@ def changepoll():
         db.commit()
     return clearvotes(pollcode)
 
-@app.route('/changestatus', methods=['GET', 'POST'])
+@app.route('/togglestatus/<pollcode>')
 @login_required
-def changestatus():
+def togglestatus(pollcode):
     user = "alexei"
-    if request.method == 'POST':
-        pollcode =  request.form['pollcode']
-        status = int(request.form['status'])
-
+    poll = query_db("SELECT * FROM polls WHERE pollcode = ?",[pollcode], one=True)
+    if poll is not None:
+        status = int( not bool(poll['status']))
         db = get_db()
-        # clear current poll(s)
         db.execute("UPDATE polls SET status = ? WHERE pollcode = ?", [status, pollcode])
         db.commit()
     return redirect(url_for('poller'))

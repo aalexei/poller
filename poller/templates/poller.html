@@ -5,53 +5,40 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
 <script src="/static/js/qrious.min.js"></script>
 {% endblock %}
-{% block menu %}
-<a class="navbar-item" href="/poller">
-    Refresh
-</a>
-<hr class="navbar-divider">
-<a class="navbar-item" href="/clearvotes/{{pollcode}}">
-    Clear votes
-</a>
-{% endblock %}
 {% block body %}
 <div class="columns is-mobile is-centered">
     <div class="column">
+        {% if status == 1 %}
+        <canvas id="myChart" width="280px" height="300px"></canvas>
+        {% else %}
+        <p class="is-size-4 has-text-centered">poll.entropy.energy/{{pollcode}}</p>
         <canvas id="qr"></canvas>
-        <script>
-         (function() {
-             var qr = new QRious({
-                 element: document.getElementById('qr'),
-                 value: 'http://{{host}}/?pollcode={{pollcode}}',
-                 size: 300,
-             });
-         })();
-        </script>
+        {% endif %}
     </div>
     <div class="column">
-        <p class="subtitle is-4">Poll: {{pollcode}}</p>
-        <p class="title is-3">Votes</p>
-        <p class="subtitle is-3">{{ votes|length }}</p>
+        <div class="mb-4 has-text-centered">
+            <p class="heading">Votes</p>
+            <p class="title">{{ votes|length }}</p>
+        </div>
         <div class="buttons">
             <a class="button is-primary" href="/poller">Refresh</a>
+            <a class="button is-link" href="/togglestatus/{{pollcode}}">
+                {% if status == 1 %} Hide {% else %} Show {% endif %}</a>
+            <a class="button is-warning mt-4" href="/clearvotes/{{pollcode}}">Clear Votes</a>
         </div>
-        <form method="post" action="/changestatus">
-            <input type="hidden" name="pollcode" value="{{ pollcode }}">
-            <div class="control">
-                {% if status == 1 %}
-                <input type="hidden" name="status" value="0">
-                <button class="button is-link">Hide</button>
-                {% else %}
-                <input type="hidden" name="status" value="1">
-                <button class="button is-link">Show</button>
-                {% endif %}
-            </div>
-        </form>
 
     </div>
 </div>
-<div class="box">
-    <canvas id="myChart" width="100%" height="100%"></canvas>
+<div>
+    <script>
+     (function() {
+         var qr = new QRious({
+             element: document.getElementById('qr'),
+             value: 'http://{{host}}/?pollcode={{pollcode}}',
+             size: 280,
+         });
+     })();
+    </script>
     <script>
      var ctx = document.getElementById('myChart');
      var myChart = new Chart(ctx, {
