@@ -134,11 +134,6 @@ def index(pollcode):
        
     return render_template("choosepoll.html")
 
-@app.route('/forgetpoll')
-def forgetpoll():
-    if 'pollcode' in session:
-        del session['pollcode']
-    return redirect(url_for('index'))
 
 @app.route('/vote', methods=('GET', 'POST'))
 def vote():
@@ -188,7 +183,6 @@ def clearvotes(pollcode):
     db.execute("UPDATE polls SET status = 0 WHERE pollcode = ?", [pollcode])
     db.commit()
 
-    # TODO how to pass parameter to poller?
     return redirect(url_for('poller'))
 
 
@@ -224,11 +218,9 @@ def poller():
     else:
         values = [c[l] for l in labels]
 
-    hostname = socket.gethostname()
-    #ip_address = socket.gethostbyname(hostname)
+    host = config.HOSTNAME
 
-
-    return render_template("poller.html", votes=votes, pollcode=pollcode, host=hostname, pollvalues = pollvalues, status=status, labels = json.dumps(labels), values = json.dumps(values))
+    return render_template("poller.html", votes=votes, pollcode=pollcode, host=host, pollvalues = pollvalues, status=status, labels = json.dumps(labels), values = json.dumps(values))
 
 @app.route('/changepoll', methods=['GET', 'POST'])
 @login_required
@@ -248,6 +240,33 @@ def changepoll():
                    [user, pollcode, pollvalues, 1])
         db.commit()
     return clearvotes(pollcode)
+
+@app.route('/changecode/<int:pollcode>')
+@login_required
+def changecode(pollcode):
+    user = "alexei"
+    error = None
+    if pollcode is not None:
+
+        codes = query_db("SELECT pollcode FROM polls")
+        for t in range(30):
+            newcode = int(random.random()*10000)
+            if newcode not in codes:
+                break
+        else:
+            error = "Couldn't assign unique new code"
+
+        if error is not None:
+            flash(error)
+        else:
+            db = get_db()
+            # Clear votes on old code
+            db.execute("DELETE FROM votes WHERE pollcode = ?", [pollcode])
+            # Update pollcode on poll
+            db.execute("UPDATE polls SET status = 0, pollcode = ? WHERE pollcode = ?", [newcode, pollcode])
+            db.commit()
+    return redirect(url_for('poller'))
+
 
 @app.route('/togglestatus/<pollcode>')
 @login_required

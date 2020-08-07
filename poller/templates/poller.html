@@ -9,14 +9,14 @@
 <div class="columns is-mobile is-centered">
     <div class="column">
         {% if status == 1 %}
-        <canvas id="myChart" width="280px" height="300px"></canvas>
+        <canvas id="myChart" width="280px" height="320px"></canvas>
         {% else %}
-        <p class="is-size-4 has-text-centered">poll.entropy.energy/{{pollcode}}</p>
+        <p class="is-size-4 has-text-centered">{{host}}/{{pollcode}}</p>
         <canvas id="qr"></canvas>
         {% endif %}
     </div>
     <div class="column">
-        <div class="mb-4 has-text-centered">
+        <div class="mb-3 has-text-centered">
             <p class="heading">Votes</p>
             <p class="title">{{ votes|length }}</p>
         </div>
@@ -24,8 +24,22 @@
             <a class="button is-primary" href="/poller">Refresh</a>
             <a class="button is-link" href="/togglestatus/{{pollcode}}">
                 {% if status == 1 %} Hide {% else %} Show {% endif %}</a>
-            <a class="button is-warning mt-4" href="/clearvotes/{{pollcode}}">Clear Votes</a>
+            <a class="button is-warning mt-3" href="/clearvotes/{{pollcode}}">Clear Votes</a>
+            <form  method="post" action="/changepoll">
+                <div class="select">
+                    <input type="hidden" name="pollcode" value="{{pollcode}}">
+                    <select class="is-warning" name="pollvalues" onchange="this.form.submit()">
+                    <option value="A B C D E" {% if pollvalues=="A B C D E" %}selected{% endif %}>A B C D E</option>
+                    <option value="A B C D" {% if pollvalues=="A B C D" %}selected{% endif %}>A B C D</option>
+                    <option value="A B C" {% if pollvalues=="A B C" %}selected{% endif %}>A B C</option>
+                    <option value="A B" {% if pollvalues=="A B" %}selected{% endif %}>A B</option>
+                    <option value="Yes No" {% if pollvalues=="Yes No" %}selected{% endif %}>Yes No</option>
+                </select>
+            </div>
+            </form>
+            <a class="button is-danger  mt-3" href="/changecode/{{pollcode}}">Change Code</a>
         </div>
+
 
     </div>
 </div>
@@ -34,7 +48,7 @@
      (function() {
          var qr = new QRious({
              element: document.getElementById('qr'),
-             value: 'http://{{host}}/?pollcode={{pollcode}}',
+             value: 'http://{{host}}/{{pollcode}}',
              size: 280,
          });
      })();
@@ -66,41 +80,5 @@
 
      });
     </script>
-</div>
-<div class="section">
-    <form method="post" action="/changepoll">
-        <div class="field is-horizontal">
-            <div class="field-label is-small">
-                <label class="label">Poll code</label>
-            </div>
-            <div class="field-body">
-                <div class="field">
-                    <div class="control">
-                        <input class="input is-small" type="text" placeholder="Numerical code" name="pollcode" value="{{pollcode}}">
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="field is-horizontal">
-            <div class="field-label is-small">
-                <label class="label">Poll Values</label>
-            </div>
-            <div class="field-body">
-                <div class="field">
-                    <div class="control">
-                        <input class="input is-small" type="text" placeholder="Space separated values" name="pollvalues" value="{{pollvalues}}">
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="field is-grouped">
-            <div class="control">
-                <button class="button is-link">Submit</button>
-            </div>
-            <div class="control">
-                <button class="button is-link is-light">Cancel</button>
-            </div>
-        </div>
-    </form>
 </div>
 {% endblock %}
