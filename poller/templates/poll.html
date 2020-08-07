@@ -13,16 +13,19 @@
 <meta http-equiv="refresh" content="5">
 {% endblock %}
 {% block body %}
-<form action="/vote">
+<div class="has-text-centered mb-5">
+    <span class="is-size-4">Poll {{pollcode}}</span><span><a href="/">  (Change)</a></span>
+</div>
+<form method="POST" action="/vote">
     <input type="hidden" name="pollcode" value="{{ pollcode }}">
     <div class="buttons">
-    {% for v in values %}
-    {% if v == vote %}
+        {% for v in values %}
+        {% if v == vote %}
         <button class="button is-medium is-fullwidth is-info" disabled name="vote" value="{{ v }}">{{ v }}</button>
         {% else %}
         <button class="button is-medium is-fullwidth is-info" name="vote" value="{{ v }}">{{ v }}</button>
-    {% endif %}
-    {% endfor %}
+        {% endif %}
+        {% endfor %}
     </div>
 </form>
 {% endblock %}

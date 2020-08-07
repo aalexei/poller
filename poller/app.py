@@ -96,9 +96,16 @@ class User(object):
         return self.id
 
 
-@app.route('/', methods=('GET', 'POST'))
-def index():
-    pollcode = None
+@app.route('/', methods=['GET','POST'])
+def default():
+    if request.method == 'POST':
+        pollcode =  request.form['pollcode']
+        return redirect('/{}'.format(pollcode))
+
+    return render_template("choosepoll.html")
+  
+@app.route('/<int:pollcode>')
+def index(pollcode):
     error = None
 
     if 'uid' not in session:
@@ -106,23 +113,11 @@ def index():
         # TODO base it on comp/ip too?
         session['uid'] = uuid.uuid4().hex
 
-    # these override the current poll
-    newpollcode = None
-    if request.method == 'GET':
-        newpollcode = request.args.get('pollcode')
-    elif request.method == 'POST':
-        newpollcode = request.form['pollcode']
-    if newpollcode is not None:
-        session['pollcode'] = newpollcode
-
-    if "pollcode" in session:
+    if pollcode is not None:
         # Is the poll still valid?
-        pollcode = session["pollcode"]
         poll = query_db("SELECT * FROM polls WHERE pollcode = ?",[pollcode], one=True)
         if poll is None:
             error = "Poll '{}' doesn't exist".format(pollcode)
-            del session['pollcode']
-
         else:
             # Check to see if the user already voted
             vote = None
@@ -137,7 +132,7 @@ def index():
     if error is not None:
         flash(error)
        
-    return render_template("choosepoll.html", session=session)
+    return render_template("choosepoll.html")
 
 @app.route('/forgetpoll')
 def forgetpoll():
@@ -149,9 +144,9 @@ def forgetpoll():
 def vote():
     error = None
     uid = session['uid']
-    pollcode = session['pollcode']
-    if request.method == 'GET':
-        vote = request.args.get('vote', default=None)
+    if request.method == 'POST':
+        pollcode = request.form['pollcode']
+        vote = request.form['vote']
 
         if pollcode is None or vote is None:
             error = "Missing poll or vote"
@@ -172,7 +167,7 @@ def vote():
     if error is not None:
         flash(error)
 
-    return redirect(url_for('index'))
+    return redirect(url_for('index',pollcode=pollcode))
 
 
 
