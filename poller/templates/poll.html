@@ -28,4 +28,12 @@
         {% endfor %}
     </div>
 </form>
+<div class="section has-text-centered">
+    <div class="is-size-5">
+        Votes cast: {{votes}}
+    </div>
+    {% if first %} <div class="notification is-success title is-size-4 mt-2">
+        You were the first!
+    </div> {% endif %}
+</div>
 {% endblock %}

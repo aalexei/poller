@@ -124,12 +124,12 @@ def index(pollcode):
             vote = None
             first = False
             uid = session['uid']
-            allvotes = query_db("SELECT * FROM votes WHERE pollcode = ?",[pollcode])
+            allvotes = query_db("SELECT * FROM votes WHERE pollcode = ? ORDER BY created ASC",[pollcode])
             votes = len(allvotes)
             prev_vote =  query_db("SELECT * FROM votes WHERE pollcode = ? AND userid = ?",[pollcode, uid])
             if len(prev_vote)>0:
                 vote = prev_vote[0]["choice"]
-                if votes==1:
+                if allvotes[0]['userid'] == uid:
                     first = True
 
             labels = poll["pollvalues"].split()
@@ -190,7 +190,6 @@ def clearvotes(pollcode):
     db.commit()
 
     return redirect(url_for('poller'))
-
 
 @app.route('/poller')
 @login_required
@@ -309,6 +308,15 @@ def login():
 @app.route("/logout")
 @login_required
 def logout():
+    user = current_user.id
+
+    db = get_db()
+    polls = query_db("SELECT * FROM polls WHERE poller = ?",[user])
+    for poll in polls:
+        db.execute("DELETE FROM votes WHERE pollcode = ?", [poll["pollcode"]])
+    db.execute("DELETE FROM polls WHERE poller = ?", [user])
+    db.commit()
+               
     logout_user()
     return redirect(url_for("login"))
 
