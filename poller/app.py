@@ -5,6 +5,7 @@ from flask import session, redirect, url_for, request, render_template, flash
 from collections import Counter
 import functools
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+from werkzeug.security import generate_password_hash, check_password_hash
 import random
 import config
 
@@ -26,9 +27,10 @@ login.login_view = 'login'
 DATABASE = config.DATABASE
 
 @login.user_loader
-def load_user(id):
-    if id=="alexei":
-        return User(id)
+def load_user(uid):
+    user =  query_db("SELECT * FROM users WHERE email = ?",[uid], one=True)
+    if user is not None:
+        return User(email=user['email'])
     else:
         return None
 
@@ -48,12 +50,15 @@ def close_connection(exception):
 # Initialise from a python session
 # >>> import app
 # >>> app.init_db()
-# >>> app.init_data()
 def init_db():
     with app.app_context():
         db = get_db()
         with app.open_resource('schema.sql', mode='r') as f:
             db.cursor().executescript(f.read())
+        db.execute("INSERT INTO users (email, passhash, temp) VALUES (?,?,?)",
+                    ["alexei@entropy.energy",
+                     generate_password_hash('pollnow'),
+                     0])
         db.commit()
 
 # convenience function for queries
@@ -63,19 +68,13 @@ def query_db(query, args=(), one=False):
     cur.close()
     return (rv[0] if rv else None) if one else rv
 
-def init_data():
-    # hack to initially populate some values
-    with app.app_context():
-        db = get_db()
-        # clear any existing votes
-        db.execute("INSERT INTO polls (poller, pollcode, pollvalues, status) VALUES (?,?,?,?)",
-                    ["alexei", "121", "A B C D", 0])
-        db.commit()
-
 
 class User(object):
-    def __init__(self, id):
-        self.id = id
+    def __init__(self, email):
+        self.id = email
+        #self.passhash = passhash
+        #self.temp = temp
+        self.authenticated = True
         
     @property
     def is_active(self):
@@ -83,10 +82,11 @@ class User(object):
 
     @property
     def is_authenticated(self):
-        if self.id is None:
-            return False
-        else:
-            return True
+        return self.authenticated
+        # if self.id is None:
+        #     return False
+        # else:
+        #     return True
 
     @property
     def is_anonymous(self):
@@ -94,6 +94,7 @@ class User(object):
 
     def get_id(self):
         return self.id
+
 
 
 @app.route('/', methods=['GET','POST'])
@@ -121,13 +122,18 @@ def index(pollcode):
         else:
             # Check to see if the user already voted
             vote = None
+            first = False
             uid = session['uid']
+            allvotes = query_db("SELECT * FROM votes WHERE pollcode = ?",[pollcode])
+            votes = len(allvotes)
             prev_vote =  query_db("SELECT * FROM votes WHERE pollcode = ? AND userid = ?",[pollcode, uid])
             if len(prev_vote)>0:
                 vote = prev_vote[0]["choice"]
+                if votes==1:
+                    first = True
 
             labels = poll["pollvalues"].split()
-            return render_template("poll.html", pollcode=pollcode, values=labels, vote=vote)
+            return render_template("poll.html", pollcode=pollcode, values=labels, vote=vote, votes=votes, first=first)
 
     if error is not None:
         flash(error)
@@ -189,7 +195,7 @@ def clearvotes(pollcode):
 @app.route('/poller')
 @login_required
 def poller():
-    user = 'alexei'
+    user = current_user.id
     polls = query_db("SELECT * FROM polls WHERE poller = ?",[user])
 
     if len(polls) == 0:
@@ -225,7 +231,7 @@ def poller():
 @app.route('/changepoll', methods=['GET', 'POST'])
 @login_required
 def changepoll():
-    user = "alexei"
+    user = current_user.id
     if request.method == 'POST':
         pollcode =  request.form['pollcode']
         pollvalues = request.form['pollvalues']
@@ -244,7 +250,7 @@ def changepoll():
 @app.route('/changecode/<int:pollcode>')
 @login_required
 def changecode(pollcode):
-    user = "alexei"
+    user = current_user.id
     error = None
     if pollcode is not None:
 
@@ -271,7 +277,7 @@ def changecode(pollcode):
 @app.route('/togglestatus/<pollcode>')
 @login_required
 def togglestatus(pollcode):
-    user = "alexei"
+    user = current_user.id
     poll = query_db("SELECT * FROM polls WHERE pollcode = ?",[pollcode], one=True)
     if poll is not None:
         status = int( not bool(poll['status']))
@@ -283,20 +289,21 @@ def togglestatus(pollcode):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        print(request.form)
         email = request.form['email']
         password = request.form['password']
         error = None
 
-        if email == "alexei@entropy.energy" and password == "pollnow":
-            user = User("alexei")
+        dbuser =  query_db("SELECT * FROM users WHERE email = ?",[email], one=True)
+
+        if dbuser is None or not check_password_hash( dbuser['passhash'], password):
+            error = "Invalid login"
         else:
-            user = User(None)
+            user = User(email=email)
+            login_user(user)
+            return redirect(url_for('poller'))
 
-        # user should be an instance of your `User` class
-        login_user(user)
-
-        return redirect(url_for('poller'))
+        if error is not None:
+            flash(error)
     return render_template('login.html')
 
 @app.route("/logout")
