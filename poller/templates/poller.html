@@ -11,8 +11,10 @@
  });
 
  function getvotes() {
-     $.getJSON("/_get_votes/{{pollcode}}",
+     $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+     $.getJSON($SCRIPT_ROOT+"/_get_votes/{{pollcode}}",
                function(data) {
+
                    $("#numberofvotes").text(data.votes)
      })
  }
