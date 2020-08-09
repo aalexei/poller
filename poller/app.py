@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sqlite3, uuid, json, socket
 from flask import g, Flask
-from flask import session, redirect, url_for, request, render_template, flash
+from flask import session, redirect, url_for, request, render_template, flash, jsonify
 from collections import Counter
 import functools
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
@@ -171,6 +171,10 @@ def vote():
     return redirect(url_for('index',pollcode=pollcode))
 
 
+@app.route('/_get_votes/<int:pollcode>')
+def get_votes(pollcode):
+    c = query_db("SELECT COUNT(userid) FROM votes WHERE pollcode = ?",[pollcode], one=True)[0]
+    return jsonify({'votes': c})
 
 @app.route('/clear')
 def clearuid():
