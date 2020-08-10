@@ -19,27 +19,41 @@
      })
  }
 </script>
+<style type="text/css" media="screen">
+ #chart{
+     width:320px !important;
+     height:340px !important;
+     margin:auto;
+ }
+ #qr{
+     width:300px !important;
+     height:300px !important;
+ }
+ .section{
+     margin:0pt;
+     padding:0pt;
+ }
+</style>
 {% endblock %}
 {% block body %}
-<div class="columns is-mobile is-centered">
+<div class="columns is-mobile is-centered  has-text-centered">
     <div class="column">
         {% if status == 1 %}
-        <canvas id="myChart" width="280px" height="320px"></canvas>
+            <canvas id="chart" class="is-centered  has-text-centered"></canvas>
         {% else %}
-        <p class="is-size-4 has-text-centered">{{host}}/{{pollcode}}</p>
-        <canvas id="qr"></canvas>
+            <p class="is-size-4 has-text-centered">{{host}}/{{pollcode}}</p>
+            <canvas id="qr"></canvas>
         {% endif %}
-    </div>
-    <div class="column">
         <div class="mb-3 has-text-centered">
-            <p class="heading">Votes</p>
-            <p class="title" id="numberofvotes">{{ votes|length }}</p>
+            <span class="title" id="numberofvotes">{{ votes|length }}</span><span> Votes</span>
         </div>
-        <div class="buttons">
+        <div class="buttons is-centered">
             <a class="button is-primary" href="/poller">Refresh</a>
             <a class="button is-link" href="/togglestatus/{{pollcode}}">
                 {% if status == 1 %} Hide {% else %} Show {% endif %}</a>
-            <a class="button is-warning mt-3" href="/clearvotes/{{pollcode}}">Clear Votes</a>
+            <a class="button is-warning" href="/clearvotes/{{pollcode}}">Clear Votes</a>
+        </div>
+        <div class="buttons is-centered">
             <form  method="post" action="/changepoll">
                 <div class="select">
                     <input type="hidden" name="pollcode" value="{{pollcode}}">
@@ -49,52 +63,53 @@
                     <option value="A B C" {% if pollvalues=="A B C" %}selected{% endif %}>A B C</option>
                     <option value="A B" {% if pollvalues=="A B" %}selected{% endif %}>A B</option>
                     <option value="Yes No" {% if pollvalues=="Yes No" %}selected{% endif %}>Yes No</option>
-                </select>
-            </div>
+                    </select>
+                </div>
             </form>
-            <a class="button is-danger  mt-3" href="/changecode/{{pollcode}}">Change Code</a>
+            <a class="button is-danger" href="/changecode/{{pollcode}}">Change Code</a>
         </div>
-
-
     </div>
 </div>
-<div>
+<div class="has-text-centered">
     <a href="/logout">Logout</a>
-    <script>
-     (function() {
-         var qr = new QRious({
-             element: document.getElementById('qr'),
-             value: 'http://{{host}}/{{pollcode}}',
-             size: 280,
-         });
-     })();
-    </script>
-    <script>
-     var ctx = document.getElementById('myChart');
-     var myChart = new Chart(ctx, {
-         type: 'bar',
-         data: {
-             labels: {{labels|safe}},
-             datasets: [{
-                 label: 'Votes',
-                 data: {{values|safe}},
-                 backgroundColor: 'rgba(81, 151, 214, 1.0)',
-                 hoverOffset: 4
-             }]
-         },
+</div>
+<script>
+    (function() {
+        var qr = new QRious({
+            element: document.getElementById('qr'),
+            value: 'http://{{host}}/{{pollcode}}',
+            size: 300,
+        });
+    })();
+</script>
+<script>
+ var ctx = document.getElementById('chart');
+ var myChart = new Chart(ctx, {
+     type: 'bar',
+     data: {
+         labels: {{labels|safe}},
+         datasets: [{
+             label: 'Votes',
+             data: {{values|safe}},
+             backgroundColor: 'rgba(81, 151, 214, 1.0)',
+             hoverOffset: 4
+         }]
+     },
 
-         options: {
-             legend: {
-                 labels: {
-                     // This more specific font property overrides the global property
-                     font: {
-                         size: 30
-                     }
+     options: {
+         responsive: true,
+         maintainAspectRatio: false,
+         legend: {
+             labels: {
+                 // This more specific font property overrides the global property
+                 font: {
+                     size: 30
                  }
              }
          }
+     }
 
-     });
-    </script>
-</div>
+ });
+</script>
+
 {% endblock %}
