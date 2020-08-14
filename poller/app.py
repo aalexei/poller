@@ -7,6 +7,8 @@ import functools
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 import random
+from itsdangerous import URLSafeTimedSerializer
+from itsdangerous.exc import BadSignature
 import config
 
 
@@ -15,6 +17,7 @@ import config
 # Borrowed code from
 # https://flask.palletsprojects.com/en/1.1.x/patterns/sqlite3/
 #
+INVITE_TIMEOUT = 3*24*60*60
 
 app = Flask(__name__)
 # secret key
@@ -28,9 +31,9 @@ DATABASE = config.DATABASE
 
 @login.user_loader
 def load_user(uid):
-    user =  query_db("SELECT * FROM users WHERE email = ?",[uid], one=True)
-    if user is not None:
-        return User(email=user['email'])
+    userdata =  query_db("SELECT * FROM users WHERE email = ?",[uid], one=True)
+    if userdata is not None:
+        return User(userdata)
     else:
         return None
 
@@ -51,15 +54,33 @@ def close_connection(exception):
 # >>> import app
 # >>> app.init_db()
 def init_db():
+    '''
+    Initialise the database tables (not users)
+    '''
     with app.app_context():
         db = get_db()
         with app.open_resource('schema.sql', mode='r') as f:
             db.cursor().executescript(f.read())
-        db.execute("INSERT INTO users (email, passhash, temp) VALUES (?,?,?)",
+        db.commit()
+
+def init_users():
+    '''
+    Initialise the user database table
+    '''
+    with app.app_context():
+        db = get_db()
+        with app.open_resource('schema_users.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+        db.execute("INSERT INTO users (email, passhash, admin) VALUES (?,?,?)",
                     ["alexei@entropy.energy",
                      generate_password_hash('pollnow'),
-                     0])
+                     1])
         db.commit()
+
+def init_all():
+    init_db()
+    init_users()
+
 
 # convenience function for queries
 def query_db(query, args=(), one=False):
@@ -70,23 +91,22 @@ def query_db(query, args=(), one=False):
 
 
 class User(object):
-    def __init__(self, email):
-        self.id = email
-        #self.passhash = passhash
-        #self.temp = temp
-        self.authenticated = True
-        
+    def __init__(self, userdata):
+
+        self.id = userdata['email']
+        self.passhash = userdata['passhash']
+        self.admin = userdata['admin']
+       
     @property
     def is_active(self):
         return True
 
     @property
     def is_authenticated(self):
-        return self.authenticated
-        # if self.id is None:
-        #     return False
-        # else:
-        #     return True
+        if self.id is None:
+            return False
+        else:
+            return True
 
     @property
     def is_anonymous(self):
@@ -94,6 +114,10 @@ class User(object):
 
     def get_id(self):
         return self.id
+
+    @property
+    def is_admin(self):
+        return self.admin==1
 
 
 
@@ -301,7 +325,7 @@ def login():
         if dbuser is None or not check_password_hash( dbuser['passhash'], password):
             error = "Invalid login"
         else:
-            user = User(email=email)
+            user = User(dbuser)
             login_user(user)
             return redirect(url_for('poller'))
 
@@ -324,3 +348,54 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
+
+@app.route("/makeinvitation", methods=['GET', 'POST'])
+@login_required
+def make_invitation():
+    if not current_user.is_admin:
+        flash("Not authorised")
+        return redirect(url_for("login"))
+
+    url = None
+    inviteemail = None
+    if request.method == 'POST':
+        inviteemail = request.form['inviteemail']
+
+        if inviteemail is not None:
+            ts = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+            token = ts.dumps(inviteemail, salt='the blah email')
+
+            url = 'http://{}/register/{}'.format(config.HOSTNAME,token)
+
+    return render_template('makeinvitation.html', url=url, email=inviteemail)
+
+@app.route("/register/<token>", methods=['GET', 'POST'])
+def register(token):
+    ts = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+    try:
+        email = ts.loads(token, salt="the blah email", max_age=INVITE_TIMEOUT)
+    except BadSignature:
+        error = "Token incorrect or expired"
+        suggestion = "Request a new token to use Poller"
+        return render_template('error.html', error=error, suggestion=suggestion)
+    error = None
+
+    if request.method == 'POST':
+        password1 = request.form['password1']
+        password2 = request.form['password2']
+
+        if password1 != password2:
+            error = "Passwords don't match"
+        else:
+            # create user
+            db = get_db()
+            db.execute("DELETE FROM users WHERE email = ?", [email])
+            db.execute("INSERT INTO users (email, passhash, admin) VALUES (?,?,0)", [
+                email, generate_password_hash(password1)])
+            db.commit()
+            return redirect(url_for("login"))
+
+    if error is not None:
+        flash(error)
+
+    return render_template('register.html', token=token)

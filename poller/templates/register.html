@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block body %}
+{% if url %}
+{% endif %}
+<form method="POST" action="/register/{{token}}">
+    <div class="field">
+        <label class="label">Password</label>
+        <div class="control">
+            <input class="input" type="password" placeholder="Password" name="password1">
+        </div>
+    </div>
+    <div class="field">
+        <label class="label">Password Again</label>
+        <div class="control">
+            <input class="input" type="password" placeholder="Password" name="password2">
+        </div>
+    </div>
+    <div class="field is-grouped">
+        <div class="control">
+            <button class="button is-link">Submit</button>
+        </div>
+    </div>
+</form>
+{% endblock %}
