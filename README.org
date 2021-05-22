@@ -1,0 +1,15 @@
+#+TITLE: Poller
+
+A simple polling app to use in the classroom. Can be used with smartphones/laptops etc to quickly provide a multiple choice poll to a class.
+
+Runs a server based on python Flask.
+
+* Teacher
+
+A teacher goes to =http://<poll-url>/poller= and logs in. This creates a poll with a random code like 234 at =http://<poll-url>/234=.
+
+The interface should be pretty obvious. The poll is open until the teacher logs out. The teacher can clear the votes, change the options and show the graph of results or a QR code. The number of votes refreshes automatically every 3s (the graph has to be manually refreshed, as they may want a static snapshot for a while).
+
+* Student
+
+The students can scan a QR code, or head to  =http://<poll-url>= and enter the poll code. They will see a set of buttons for choices like A/B/C/D or Yes/No which the teacher chose. The view reloads every 4s, the students choice is shown selected until the poll is reset and they can change it at any point. If they are the first to vote in a quizz it lets them know, and it lets them know how many people have voted.
