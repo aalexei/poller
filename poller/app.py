@@ -21,7 +21,7 @@ INVITE_TIMEOUT = 3*24*60*60
 
 app = Flask(__name__)
 # secret key
-app.secret_key = b'\x060W}\x10\x03\xcc\xf7$[\xc6H\x88\xa6\x87\x0c'
+app.secret_key = b'\x060W}\x10\x03\x00\xf7$[\xc6H\x88\xa6\x87\x0c'
 
 #login_manager.init_app(app)
 login = LoginManager(app)
@@ -72,8 +72,8 @@ def init_users():
         with app.open_resource('schema_users.sql', mode='r') as f:
             db.cursor().executescript(f.read())
         db.execute("INSERT INTO users (email, passhash, admin) VALUES (?,?,?)",
-                    ["alexei@entropy.energy",
-                     generate_password_hash('pollnow'),
+                    ["<admin-email>",
+                     generate_password_hash('<admin-pass>'),
                      1])
         db.commit()
 
