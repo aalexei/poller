@@ -3,6 +3,7 @@ import justpy as jp
 from requests_oauthlib import OAuth2Session
 from collections import Counter
 import json
+import random
 
 # hold all polls in running memory`
 current_polls = {}
@@ -15,6 +16,16 @@ choice_types = [
     'Yes No',
     'True False',
     ]
+
+def randomVotes(choices, N):
+    values = choices.split()
+    votes = {}
+    for i in range(N):
+        v = random.choice(values)
+        votes[random.randrange(1,9999)] = v
+    return votes
+
+
 
 @jp.SetRoute('/')
 @jp.SetRoute('/{pollid:int}')
@@ -72,6 +83,7 @@ def poller(request):
         pollid = 1234
         poll = {'user':user, 'choices':'A B C D', 'votes':{},}
         current_polls[pollid] = poll
+        poll['votes'] = randomVotes(poll['choices'],30)
 
 
     wp = jp.WebPage()
@@ -96,8 +108,17 @@ def poller(request):
 
     chart_def ={
         'chart':{'type':'bar'},
+        'title': '',
         'xAxis':{'categories':choices},
-        'series':[{'data':votes, 'name':'Votes'}],
+        'yAxis':{'title':{'text':'Votes'}, 'allowDecimals':False},
+        'series':[{'data':votes}],
+        'plotOptions': {'bar': {
+            'grouping': False,
+            'shadow': False,
+            'groupPadding': 0.05,
+        }
+                        },
+        'credits':{'enabled':False},
     }
     my_chart = jp.HighCharts(a=div, classes='border w-full', options=json.dumps(chart_def))
 
@@ -106,15 +127,26 @@ def poller(request):
     #
     div = jp.Div(a=col, classes="w-full")
 
-    sel = jp.Select(a=div, name="choices", classes="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm")
+    jp.Label(a=div, text="Choices:")
+    sel = jp.Select(a=div, name="choices",
+                    change=choiceChange,
+                    classes="my-3 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm")
     for choices in choice_types:
-        jp.Option(a=sel, text=choices)
+        if choices == poll['choices']:
+            jp.Option(a=sel, label=choices, value=choices, selected=True)
+        else:
+            jp.Option(a=sel, label=choices, value=choices)
 
-    jp.Button(a=div, label="Clear Votes")
+    div = jp.Div(a=col, classes="w-full")
+    jp.Button(a=div, text="Clear Votes")
 
 
 
     return wp
+
+async def choiceChange(self,msg):
+    print('Choice', msg, msg.target.value)
+
 
 
 jp.justpy()
