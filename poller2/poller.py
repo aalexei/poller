@@ -4,6 +4,7 @@ from requests_oauthlib import OAuth2Session
 from collections import Counter
 import json
 import random
+import altair as alt
 
 # hold all polls in running memory`
 current_polls = {}
@@ -55,15 +56,19 @@ def pollee(request):
             else:
                 state = "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"
             btn=jp.Button(a=div,
-                      text=k,
-                      classes=f"items-center rounded-md border border-transparent px-4 py-4 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 {state}",
-                      )
+                          text=k,
+                          classes=f"items-center rounded-md border border-transparent px-4 py-4 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 {state}",
+                          )
 
         jp.Button(a=div,
                   text=f"Clear",
                   classes="items-center rounded-md border px-4 py-4 ")
 
     return wp
+
+async def vote(self, msg):
+    poll = current_polls[msg.page.pollid]
+
 
 
 @jp.SetRoute('/poller')
@@ -73,9 +78,10 @@ def poller(request):
     user = "aalexei"
 
     # grab poll if one already set
-    for p in current_polls:
+    for pid, p in current_polls.items():
         if p.get('user')==user:
             poll = p
+            pollid = pid
             break
     else:
         # default poll
@@ -87,6 +93,7 @@ def poller(request):
 
 
     wp = jp.WebPage()
+    wp.pollid = pollid
     col = jp.Div(a=wp, classes="flex flex-col p-5")
     #
     # Poll URL
@@ -108,19 +115,22 @@ def poller(request):
 
     chart_def ={
         'chart':{'type':'bar'},
-        'title': '',
-        'xAxis':{'categories':choices},
+        'title':{'text':''},
+        'xAxis':{'categories':choices, 'labels': {'style':{'fontSize':'24px'}}},
         'yAxis':{'title':{'text':'Votes'}, 'allowDecimals':False},
-        'series':[{'data':votes}],
-        'plotOptions': {'bar': {
-            'grouping': False,
-            'shadow': False,
-            'groupPadding': 0.05,
-        }
-                        },
+        'plotOptions': {
+            'bar': {
+                #'grouping': False,
+                'groupPadding': 0,
+                'maxPointWidth': 0,
+                'pointPadding': 0,
+                'showInLegend': False,
+            }
+        },
         'credits':{'enabled':False},
+        'series':[{'data':votes}],
     }
-    my_chart = jp.HighCharts(a=div, classes='border w-full', options=json.dumps(chart_def))
+    wp.chart = jp.HighCharts(a=div, classes='w-full', options=json.dumps(chart_def))
 
     #
     # Controls
@@ -147,6 +157,13 @@ def poller(request):
 async def choiceChange(self,msg):
     print('Choice', msg, msg.target.value)
 
+    poll = current_polls[msg.page.pollid]
+    poll['choices'] = msg.target.value
+    poll['votes'] = randomVotes(poll['choices'], 30)
+
+    for page in jp.WebPage.instances.values():
+        await page.reload()
+        #jp.run_task(msg.page.update())
 
 
 jp.justpy()
