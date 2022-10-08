@@ -4,7 +4,6 @@ from requests_oauthlib import OAuth2Session
 from collections import Counter
 import json
 import random
-import altair as alt
 
 # hold all polls in running memory`
 current_polls = {}
@@ -40,35 +39,43 @@ def pollee(request):
 
     else:
         poll = current_polls[pollid]
-
-        # pretend vote already cast
         sid = request.session_id
-        poll['votes'][sid] = 'B'
+        wp.pollid = pollid
 
+        #
+        # Title
+        #
         div = jp.Div(a=col, classes="w-full")
         jp.Div(a=div, text=f"Poll: {pollid}", classes="text-4xl text-center")
 
-        div = jp.Div(a=col, classes="w-full flex flex-col")
+        #
+        # Buttons
+        #
+        div = jp.Div(a=col, classes="w-full flex flex-col pt-5 gap-2")
         vote = poll['votes'].get(sid)
         for k in poll['choices'].split():
             if vote==k:
-                state = "bg-green-600"
+                state = "bg-indigo-500"
             else:
-                state = "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"
+                state = "bg-blue-300 hover:bg-blue-500 focus:ring-blue-400"
             btn=jp.Button(a=div,
-                          text=k,
-                          classes=f"items-center rounded-md border border-transparent px-4 py-4 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 {state}",
+                          value=k,
+                          classes=f"items-center {state} rounded-md border p-4 focus:ring-2 focus:ring-offset-2",
+                          click=castVote,
                           )
-
-        jp.Button(a=div,
-                  text=f"Clear",
-                  classes="items-center rounded-md border px-4 py-4 ")
+            jp.Span(a=btn, text=k, classes="text-white text-3xl")
+            if vote==k:
+                btn.disabled = True
 
     return wp
 
-async def vote(self, msg):
-    poll = current_polls[msg.page.pollid]
+async def castVote(self, msg):
 
+    pollid = msg.page.pollid
+    poll = current_polls[pollid]
+    poll['votes'][msg.session_id] = msg.value
+    print(pollid, msg)
+    await msg.page.reload()
 
 
 @jp.SetRoute('/poller')
@@ -99,7 +106,7 @@ def poller(request):
     # Poll URL
     #
     div = jp.Div(a=col, classes="w-full")
-    jp.Div(a=div, text=pollid, classes="text-4xl text-center")
+    jp.Div(a=div, text=f"Poll: {pollid}", classes="text-4xl text-center")
 
     #
     # Results
@@ -108,19 +115,19 @@ def poller(request):
     # totals
     C = Counter()
     for v in poll['votes'].values():
-        C.update(v)
+        C.update([v])
 
     choices = poll['choices']
-    votes = [C[c] for c in choices]
+    votes = [C[c] for c in choices.split()]
 
     chart_def ={
         'chart':{'type':'bar'},
         'title':{'text':''},
-        'xAxis':{'categories':choices, 'labels': {'style':{'fontSize':'24px'}}},
+        'xAxis':{'categories':choices.split(), 'labels': {'style':{'fontSize':'24px'}}},
         'yAxis':{'title':{'text':'Votes'}, 'allowDecimals':False},
         'plotOptions': {
             'bar': {
-                #'grouping': False,
+                'grouping': False,
                 'groupPadding': 0,
                 'maxPointWidth': 0,
                 'pointPadding': 0,
@@ -135,22 +142,14 @@ def poller(request):
     #
     # Controls
     #
-    div = jp.Div(a=col, classes="w-full")
+    div = jp.Div(a=col, classes="w-full flex flex-row mt-5 p-5 border border-gray-300")
 
-    jp.Label(a=div, text="Choices:")
+    jp.Div(a=div, text="Reset poll:", classes="basis-1/4 mr-5")
     sel = jp.Select(a=div, name="choices",
                     change=choiceChange,
-                    classes="my-3 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm")
+                    classes="basis-3/4 grow")
     for choices in choice_types:
-        if choices == poll['choices']:
-            jp.Option(a=sel, label=choices, value=choices, selected=True)
-        else:
-            jp.Option(a=sel, label=choices, value=choices)
-
-    div = jp.Div(a=col, classes="w-full")
-    jp.Button(a=div, text="Clear Votes")
-
-
+        jp.Option(a=sel, label=choices, value=choices)
 
     return wp
 
@@ -159,7 +158,7 @@ async def choiceChange(self,msg):
 
     poll = current_polls[msg.page.pollid]
     poll['choices'] = msg.target.value
-    poll['votes'] = randomVotes(poll['choices'], 30)
+    poll['votes'] = {} #randomVotes(poll['choices'], 30)
 
     for page in jp.WebPage.instances.values():
         await page.reload()
