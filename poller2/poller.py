@@ -25,6 +25,12 @@ def randomVotes(choices, N):
         votes[random.randrange(1,9999)] = v
     return votes
 
+def defaults(D,**args):
+    '''
+    Return dict D with **args as defaults (i.e. overriden by common keys in D)
+    '''
+    args.update(D)
+    return args
 
 
 @jp.SetRoute('/')
@@ -41,6 +47,7 @@ def pollee(request):
         poll = current_polls[pollid]
         sid = request.session_id
         wp.pollid = pollid
+        wp.role = 'pollee'
 
         #
         # Title
@@ -77,6 +84,102 @@ async def castVote(self, msg):
     print(pollid, msg)
     await msg.page.reload()
 
+    for page in jp.WebPage.instances.values():
+        if page.pollid == pollid and page.role == "poller":
+            # There might be multiple poller pages
+            page.chart.updateChart(poll)
+            #await page.chart.update()
+            #await page.chart.chart.update()
+            #jp.run_task(page.update())
+            #await page.reload()
+            await page.update()
+
+class ChartDiv(jp.Div):
+    '''
+    Display chart of results
+    '''
+
+    def __init__(self, **kwargs):
+        super().__init__(**defaults(
+            kwargs,
+            delete_flag=False,
+            #classes="q-pa-xs",
+        ))
+
+    #     self.setup()
+
+    # def setup(self):
+
+        chart_def ={
+            'chart':{'type':'bar'},
+            'title':{'text':''},
+            'xAxis':{'categories':['A','B'], 'labels': {'style':{'fontSize':'24px'}}},
+            'yAxis':{'title':{'text':'Votes'}, 'allowDecimals':False},
+            'plotOptions': {
+                'series': {'animation': True},
+                'bar': {
+                    'grouping': False,
+                    'groupPadding': 0,
+                    'maxPointWidth': 0,
+                    'pointPadding': 0,
+                    'showInLegend': False,
+                }
+            },
+            'credits':{'enabled':False},
+            'series':[{'data':[0,0]}],
+        }
+
+        self.chart = jp.HighCharts(a=self, classes='w-full', options=chart_def, delete_flag=False)
+
+    # def setChart(self, poll):
+
+    #     choices = poll['choices'].split()
+    #     votes = poll['votes'].values()
+    #     # totals
+    #     C = Counter()
+    #     for v in votes:
+    #         print(C,v)
+    #         C.update([v])
+    #     counts = [C[c] for c in choices]
+
+    #     chart_def ={
+    #         'chart':{'type':'bar'},
+    #         'title':{'text':''},
+    #         'xAxis':{'categories':choices, 'labels': {'style':{'fontSize':'24px'}}},
+    #         'yAxis':{'title':{'text':'Votes'}, 'allowDecimals':False},
+    #         'plotOptions': {
+    #             'series': {'animation': False},
+    #             'bar': {
+    #                 'grouping': False,
+    #                 'groupPadding': 0,
+    #                 'maxPointWidth': 0,
+    #                 'pointPadding': 0,
+    #                 'showInLegend': False,
+    #             }
+    #         },
+    #         'credits':{'enabled':False},
+    #         'series':[{'data':counts}],
+    #     }
+
+    #     self.delete_components()
+    #     self.chart = jp.HighCharts(a=self, classes='w-full', options=chart_def, delete_flag=False)
+    #     #self.chart = chart
+    #     #print(chart)
+
+    def updateChart(self, poll):
+
+        choices = poll['choices'].split()
+        votes = poll['votes'].values()
+        # totals
+        C = Counter()
+        for v in votes:
+            print(C,v)
+            C.update([v])
+        counts = [C[c] for c in choices]
+
+        self.chart.options.xAxis.categories = choices
+        self.chart.options.series[0].data = counts
+
 
 @jp.SetRoute('/poller')
 def poller(request):
@@ -96,11 +199,13 @@ def poller(request):
         pollid = 1234
         poll = {'user':user, 'choices':'A B C D', 'votes':{},}
         current_polls[pollid] = poll
-        poll['votes'] = randomVotes(poll['choices'],30)
+        #poll['votes'] = randomVotes(poll['choices'],30)
+        poll['votes'] = {}
 
 
     wp = jp.WebPage()
     wp.pollid = pollid
+    wp.role = 'poller'
     col = jp.Div(a=wp, classes="flex flex-col p-5")
     #
     # Poll URL
@@ -112,32 +217,8 @@ def poller(request):
     # Results
     #
     div = jp.Div(a=col, classes="w-full")
-    # totals
-    C = Counter()
-    for v in poll['votes'].values():
-        C.update([v])
-
-    choices = poll['choices']
-    votes = [C[c] for c in choices.split()]
-
-    chart_def ={
-        'chart':{'type':'bar'},
-        'title':{'text':''},
-        'xAxis':{'categories':choices.split(), 'labels': {'style':{'fontSize':'24px'}}},
-        'yAxis':{'title':{'text':'Votes'}, 'allowDecimals':False},
-        'plotOptions': {
-            'bar': {
-                'grouping': False,
-                'groupPadding': 0,
-                'maxPointWidth': 0,
-                'pointPadding': 0,
-                'showInLegend': False,
-            }
-        },
-        'credits':{'enabled':False},
-        'series':[{'data':votes}],
-    }
-    wp.chart = jp.HighCharts(a=div, classes='w-full', options=json.dumps(chart_def))
+    wp.chart = ChartDiv(a=div)
+    wp.chart.updateChart(poll)
 
     #
     # Controls
@@ -156,12 +237,23 @@ def poller(request):
 async def choiceChange(self,msg):
     print('Choice', msg, msg.target.value)
 
-    poll = current_polls[msg.page.pollid]
+    pollid = msg.page.pollid
+    poll = current_polls[pollid]
     poll['choices'] = msg.target.value
     poll['votes'] = {} #randomVotes(poll['choices'], 30)
 
     for page in jp.WebPage.instances.values():
-        await page.reload()
+        if page.pollid == pollid and page.role == "poller":
+            # There might be multiple poller pages
+            page.chart.updateChart(poll)
+            # page.chart.options.xAxis.categories = poll['choices'].split()
+            # page.chart.options.series[0].data = poll['votes']
+            #print('Updated chart')
+            #await page.reload()
+            await page.update()
+            #await page.chart.update()
+        else:
+            await page.reload()
         #jp.run_task(msg.page.update())
 
 
