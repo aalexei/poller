@@ -96,23 +96,6 @@ def pollee(request):
         wp.button_div = ButtonDiv(a=col)
         wp.button_div.setButtons(poll, sid)
 
-
-        # self.button_div = jp.Div(a=col, classes="w-full flex flex-col pt-5 gap-2")
-        # vote = poll['votes'].get(sid)
-        # for k in poll['choices'].split():
-        #     if vote==k:
-        #         state = "bg-indigo-500"
-        #     else:
-        #         state = "bg-blue-300 hover:bg-blue-500 focus:ring-blue-400"
-        #     btn=jp.Button(a=self.button_div,
-        #                   value=k,
-        #                   classes=f"items-center {state} rounded-md border p-4 focus:ring-2 focus:ring-offset-2",
-        #                   click=castVote,
-        #                   )
-        #     jp.Span(a=btn, text=k, classes="text-white text-3xl")
-        #     if vote==k:
-        #         btn.disabled = True
-
     return wp
 
 async def castVote(self, msg):
@@ -123,17 +106,12 @@ async def castVote(self, msg):
         poll['votes'][msg.session_id] = msg.value
     print(pollid, msg)
     msg.page.button_div.setButtons(poll,msg.session_id)
-    #await msg.page.reload()
     await msg.page.update()
 
     for page in jp.WebPage.instances.values():
         if page.pollid == pollid and page.role == "poller":
             # There might be multiple poller pages
             page.chart.updateChart(poll)
-            #await page.chart.update()
-            #await page.chart.chart.update()
-            #jp.run_task(page.update())
-            #await page.reload()
             await page.update()
 
 async def gotoPoll(self, msg):
@@ -207,7 +185,6 @@ def poller(request):
         pollid = 1234
         poll = {'user':user, 'choices':'A B C D', 'votes':{},}
         current_polls[pollid] = poll
-        #poll['votes'] = randomVotes(poll['choices'],30)
         poll['votes'] = {}
 
 
@@ -215,6 +192,7 @@ def poller(request):
     wp.pollid = pollid
     wp.role = 'poller'
     col = jp.Div(a=wp, classes="flex flex-col p-5")
+
     #
     # Poll URL
     #
@@ -254,17 +232,10 @@ async def choiceChange(self,msg):
         if page.pollid == pollid and page.role == "poller":
             # There might be multiple poller pages
             page.chart.updateChart(poll)
-            # page.chart.options.xAxis.categories = poll['choices'].split()
-            # page.chart.options.series[0].data = poll['votes']
-            #print('Updated chart')
-            #await page.reload()
             await page.update()
-            #await page.chart.update()
         else:
             page.button_div.setButtons(poll)
-            #await page.reload()
             await page.update()
-        #jp.run_task(msg.page.update())
 
 
 jp.justpy()
