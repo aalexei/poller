@@ -41,7 +41,12 @@ def pollee(request):
 
     pollid = request.path_params.get("pollid")
     if pollid not in current_polls:
-        jp.Div(a=col, text="No poll by that ID", classes="w-full text-4xl text-center")
+        jp.Div(a=col, text=f"No poll {pollid}", classes="w-full text-4xl text-center")
+        div = jp.Div(a=col, classes="w-full text-2xl text-center")
+        jp.InputChangeOnly(a=div,
+                 placeholder='Enter poll ID',
+                 change = gotoPoll,
+                 classes="m-2 bg-gray-200 border-2 border-gray-200 rounded text-gray-700 focus:outline-none focus:bg-white focus:border-purple-500")
 
     else:
         poll = current_polls[pollid]
@@ -93,6 +98,10 @@ async def castVote(self, msg):
             #jp.run_task(page.update())
             #await page.reload()
             await page.update()
+
+async def gotoPoll(self, msg):
+    msg.page.redirect="/"+self.value
+
 
 class ChartDiv(jp.Div):
     '''
